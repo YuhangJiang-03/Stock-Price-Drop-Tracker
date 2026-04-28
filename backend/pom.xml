@@ -21,6 +21,8 @@
     <properties>
         <java.version>17</java.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <!-- Lombok 1.18.40+ supports JDK 25; 1.18.46 also supports JDK 26. -->
+        <lombok.version>1.18.46</lombok.version>
     </properties>
 
     <dependencies>
@@ -74,10 +76,13 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Lombok keeps the model/DTO classes concise -->
+        <!-- Lombok keeps the model/DTO classes concise.
+             Pinned to a version because we also reference it from the
+             maven-compiler-plugin's annotationProcessorPaths below. -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
             <optional>true</optional>
         </dependency>
 
@@ -96,6 +101,27 @@
 
     <build>
         <plugins>
+            <!--
+              Maven 3.9+ / maven-compiler-plugin 3.11+ no longer pick up
+              Lombok automatically just because it's on the classpath. We
+              must explicitly register it as an annotation processor or
+              the @Getter / @Setter / @Builder / @Slf4j etc. methods will
+              never be generated and the project will fail to compile.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

@@ -1,0 +1,31 @@
+# Local development Postgres for the stock-price-tracker backend.
+#
+# Usage:
+#   docker compose up -d        # start in background
+#   docker compose down         # stop & remove the container
+#   docker compose down -v      # also wipe the data volume (fresh DB)
+#
+# This matches the default credentials in backend/src/main/resources/application.yml
+# (postgres / postgres on database `stock_tracker`), so the backend works with
+# zero env-var overrides when this container is running.
+services:
+  postgres:
+    image: postgres:16
+    container_name: stock-tracker-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: stock_tracker
+    ports:
+      - "5432:5432"
+    volumes:
+      - stock-tracker-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d stock_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  stock-tracker-pgdata:
