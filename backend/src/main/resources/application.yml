@@ -1,0 +1,51 @@
+# =============================================================================
+# Spring Boot configuration for the stock price tracker.
+# Values can be overridden through environment variables (12-factor friendly).
+# =============================================================================
+spring:
+  application:
+    name: stock-tracker-backend
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/stock_tracker}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # Use "update" for local dev; switch to "validate" + Flyway/Liquibase in prod.
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    open-in-view: false
+
+server:
+  port: ${SERVER_PORT:8080}
+
+# -----------------------------------------------------------------------------
+# Application-specific properties
+# -----------------------------------------------------------------------------
+app:
+  jwt:
+    # 256-bit base64 secret. ALWAYS override in production via env var.
+    secret: ${JWT_SECRET:ZmFrZS1kZXYtc2VjcmV0LWNoYW5nZS1tZS1pbi1wcm9kdWN0aW9uLWVudg==}
+    # Token lifetime in milliseconds (24h).
+    expiration-ms: 86400000
+
+  scheduler:
+    # How often to poll prices (5 minutes by default).
+    price-check-cron: "0 */5 * * * *"
+    # Cool-down so a single user is not spammed with SMS messages.
+    notification-cooldown-minutes: 60
+
+  sms:
+    # "mock" => log only. "twilio" => real Twilio (not implemented yet).
+    provider: ${SMS_PROVIDER:mock}
+
+logging:
+  level:
+    com.stocktracker: INFO
+    org.springframework.security: INFO
