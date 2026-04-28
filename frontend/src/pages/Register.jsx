@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { parseError } from "../services/api.js";
+import AuthHero from "../components/AuthHero.jsx";
 
 export default function Register() {
   const { register } = useAuth();
@@ -35,9 +36,13 @@ export default function Register() {
 
   return (
     <div className="auth-container">
+      <AuthHero kicker="Get started" />
       <div className="auth-card">
         <h2>Create your account</h2>
+        <p className="subtitle">Start tracking stocks in under a minute.</p>
+
         {error && <div className="error-banner">{error}</div>}
+
         <form onSubmit={onSubmit} noValidate>
           <div className="form-group">
             <label htmlFor="email">Email</label>
@@ -46,6 +51,7 @@ export default function Register() {
               name="email"
               type="email"
               autoComplete="email"
+              placeholder="you@example.com"
               value={form.email}
               onChange={onChange}
               required
@@ -57,7 +63,7 @@ export default function Register() {
               id="phoneNumber"
               name="phoneNumber"
               type="tel"
-              placeholder="+14155552671"
+              placeholder="+1 415 555 2671"
               value={form.phoneNumber}
               onChange={onChange}
               required
@@ -70,6 +76,7 @@ export default function Register() {
               name="password"
               type="password"
               autoComplete="new-password"
+              placeholder="At least 8 characters"
               minLength={8}
               value={form.password}
               onChange={onChange}
@@ -77,9 +84,10 @@ export default function Register() {
             />
           </div>
           <button className="primary" type="submit" disabled={loading}>
-            {loading ? "Creating account..." : "Create account"}
+            {loading ? <><span className="spinner" />Creating account…</> : "Create account"}
           </button>
         </form>
+
         <div className="switch">
           Already have an account? <Link to="/login">Sign in</Link>
         </div>

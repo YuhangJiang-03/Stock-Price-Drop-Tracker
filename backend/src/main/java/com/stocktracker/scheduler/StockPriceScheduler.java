@@ -2,7 +2,7 @@ package com.stocktracker.scheduler;
 
 import com.stocktracker.model.TrackedStock;
 import com.stocktracker.repository.TrackedStockRepository;
-import com.stocktracker.service.SmsService;
+import com.stocktracker.service.NotificationService;
 import com.stocktracker.service.StockPriceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,12 +18,16 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Periodically checks every tracked stock and triggers an SMS alert when its
+ * Periodically checks every tracked stock and triggers a notification when its
  * price has dropped from {@code highestPriceSeen} by more than the user's
  * threshold. Runs every 5 minutes by default ({@code app.scheduler.price-check-cron}).
  *
  * <p>Each user is rate-limited via {@link #cooldown} so they aren't spammed if
  * a stock keeps oscillating below the threshold.
+ *
+ * <p>The actual delivery channel (log line, email, etc.) is decided by the
+ * {@link NotificationService} bean wired in — see
+ * {@code app.notification.channel} in {@code application.yml}.
  */
 @Component
 @RequiredArgsConstructor
@@ -34,7 +38,7 @@ public class StockPriceScheduler {
 
     private final TrackedStockRepository trackedStockRepository;
     private final StockPriceService stockPriceService;
-    private final SmsService smsService;
+    private final NotificationService notificationService;
 
     @Value("${app.scheduler.notification-cooldown-minutes:60}")
     private long cooldownMinutes;
@@ -109,11 +113,18 @@ public class StockPriceScheduler {
     }
 
     private void sendDropAlert(TrackedStock stock, BigDecimal current, BigDecimal high, BigDecimal dropPct) {
-        String phone = stock.getUser().getPhoneNumber();
-        String message = String.format(
-            "Stock alert: %s is at $%s, down %s%% from $%s.",
-            stock.getSymbol(), current.toPlainString(), dropPct.toPlainString(), high.toPlainString()
+        String subject = String.format("Price alert: %s down %s%%",
+            stock.getSymbol(), dropPct.toPlainString());
+        String body = String.format(
+            "%s is now $%s, down %s%% from a recent high of $%s.%n%n"
+                + "You set a %s%% drop threshold for this stock.%n%n"
+                + "— Stock Price Tracker",
+            stock.getSymbol(),
+            current.toPlainString(),
+            dropPct.toPlainString(),
+            high.toPlainString(),
+            stock.getDropThresholdPercentage().toPlainString()
         );
-        smsService.sendSms(phone, message);
+        notificationService.notify(stock.getUser(), subject, body);
     }
 }

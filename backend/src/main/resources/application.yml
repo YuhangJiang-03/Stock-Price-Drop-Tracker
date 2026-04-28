@@ -22,6 +22,28 @@ spring:
         format_sql: true
     open-in-view: false
 
+  # ---------------------------------------------------------------------------
+  # SMTP — only consulted when app.notification.channel=email.
+  # Gmail defaults shown here; any SMTP server works.
+  # For Gmail you MUST use an App Password (16-char), not your account password.
+  # See README.
+  # ---------------------------------------------------------------------------
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
 server:
   port: ${SERVER_PORT:8080}
 
@@ -38,12 +60,17 @@ app:
   scheduler:
     # How often to poll prices (5 minutes by default).
     price-check-cron: "0 */5 * * * *"
-    # Cool-down so a single user is not spammed with SMS messages.
+    # Cool-down so a single user is not spammed with alerts.
     notification-cooldown-minutes: 60
 
-  sms:
-    # "mock" => log only. "twilio" => real Twilio (not implemented yet).
-    provider: ${SMS_PROVIDER:mock}
+  notification:
+    # "log"   => write the alert to the application log (default, zero setup)
+    # "email" => deliver via SMTP using spring.mail.* settings above
+    channel: ${NOTIFICATION_CHANNEL:log}
+    email:
+      # "From" address shown on outgoing emails. For Gmail this MUST be the
+      # same as spring.mail.username, otherwise Google rewrites the header.
+      from: ${NOTIFICATION_EMAIL_FROM:${MAIL_USERNAME:no-reply@example.com}}
 
 logging:
   level:

@@ -4,3 +4,9 @@ target/
 .vscode/
 *.log
 .env
+
+# Local-only config overrides — these may contain secrets (Gmail App Passwords,
+# DB credentials, JWT secrets, etc.). Never commit.
+src/main/resources/application-local.yml
+src/main/resources/application-local.yaml
+src/main/resources/application-local.properties

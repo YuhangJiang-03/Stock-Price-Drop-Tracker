@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { parseError } from "../services/api.js";
+import AuthHero from "../components/AuthHero.jsx";
 
 export default function Login() {
   const { login } = useAuth();
@@ -31,9 +32,13 @@ export default function Login() {
 
   return (
     <div className="auth-container">
+      <AuthHero kicker="Welcome back" />
       <div className="auth-card">
         <h2>Sign in</h2>
+        <p className="subtitle">Pick up where you left off.</p>
+
         {error && <div className="error-banner">{error}</div>}
+
         <form onSubmit={onSubmit} noValidate>
           <div className="form-group">
             <label htmlFor="email">Email</label>
@@ -42,6 +47,7 @@ export default function Login() {
               name="email"
               type="email"
               autoComplete="email"
+              placeholder="you@example.com"
               value={form.email}
               onChange={onChange}
               required
@@ -54,15 +60,17 @@ export default function Login() {
               name="password"
               type="password"
               autoComplete="current-password"
+              placeholder="••••••••"
               value={form.password}
               onChange={onChange}
               required
             />
           </div>
           <button className="primary" type="submit" disabled={loading}>
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? <><span className="spinner" />Signing in…</> : "Sign in"}
           </button>
         </form>
+
         <div className="switch">
           New here? <Link to="/register">Create an account</Link>
         </div>

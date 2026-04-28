@@ -19,11 +19,13 @@ stock-price-tracker/
 | Auth        | JWT (HS256) via `jjwt`                                                |
 | Scheduler   | Spring `@Scheduled` (cron: every 5 min)                               |
 | Stock API   | `StockPriceService` interface + `MockStockPriceService` (random walk) |
-| SMS         | `SmsService` interface + `MockSmsService` (logs only)                 |
+| Notifications | `NotificationService` interface + `LoggingNotificationService` (default) and `EmailNotificationService` (Gmail SMTP, free) |
 | Frontend    | React 18 (hooks), React Router 6, axios, Vite                         |
 
-A real Twilio implementation can be dropped in by adding a `TwilioSmsService`
-bean and switching `app.sms.provider` to `twilio` in `application.yml`.
+The notification channel is selected via `app.notification.channel`:
+`log` (default — writes to stdout), `email` (uses Spring's `JavaMailSender` against
+any SMTP server). A future SMS channel (Twilio) can be added by writing one
+more `NotificationService` implementation.
 
 ## Architecture overview
 
@@ -157,12 +159,61 @@ Cloudflare Pages…) and point its `/api` rewrite at the backend.
    - Otherwise a percentage drop is computed:
      `(highest − current) / highest × 100`.
    - If the drop ≥ threshold **and** the per-stock cooldown has elapsed,
-     `SmsService.sendSms` is invoked and `lastNotifiedAt` is set.
-3. The mock SMS service writes a `[MOCK SMS]` log line — swap in Twilio later.
+     `NotificationService.notify(user, subject, body)` is invoked and
+     `lastNotifiedAt` is set.
+3. The active `NotificationService` decides where the alert actually goes —
+   the application log (default) or an email (Gmail SMTP).
 
-## Plugging in real providers
+## Notification channels
 
-### Real stock prices
+Switch channels with `app.notification.channel` (env var: `NOTIFICATION_CHANNEL`):
+
+### `log` (default — zero setup)
+`LoggingNotificationService` writes:
+```
+[NOTIFY:LOG] to=me@example.com | subject="Price alert: AAPL down 6.18%" | body="..."
+```
+Useful for development; nothing leaves the machine.
+
+### `email` (free via Gmail SMTP)
+`EmailNotificationService` uses Spring's `JavaMailSender`. Setup:
+
+1. **Enable 2-Step Verification on your Google account** (required to mint an
+   App Password). https://myaccount.google.com/security
+2. **Create an App Password.** https://myaccount.google.com/apppasswords
+   - App: "Mail", Device: "Other → Stock Tracker"
+   - Google shows you a 16-character password — copy it (no spaces needed).
+3. **Run the backend with these env vars:**
+   ```powershell
+   $env:NOTIFICATION_CHANNEL="email"
+   $env:MAIL_USERNAME="your.address@gmail.com"
+   $env:MAIL_PASSWORD="<the 16-char app password>"
+   # Optional — defaults to MAIL_USERNAME
+   $env:NOTIFICATION_EMAIL_FROM="your.address@gmail.com"
+   mvn spring-boot:run
+   ```
+   On Linux/macOS use `export VAR=value` instead of `$env:VAR=...`.
+
+That's it. Trigger an alert (the mock stock service will eventually produce a
+big enough random drop on its own — usually within a few scheduler ticks) and
+the email lands in the inbox of whatever address the user registered with.
+
+**Notes on Gmail SMTP:**
+- Free, no signup beyond an existing Gmail account.
+- Limit: ~500 messages per day per account (massively more than personal alerts need).
+- Emails are sent **from** your Gmail address **to** each registered user's email.
+- Use any other SMTP server by overriding `MAIL_HOST` / `MAIL_PORT`
+  (e.g. `smtp-relay.brevo.com:587`, `smtp.mailgun.org:587`, etc.).
+
+### Adding more channels later
+Implement `NotificationService` and gate the bean with `@ConditionalOnProperty`:
+```java
+@Service
+@ConditionalOnProperty(name = "app.notification.channel", havingValue = "sms")
+class TwilioNotificationService implements NotificationService { ... }
+```
+
+## Plugging in a real stock-price provider
 Implement `StockPriceService` with a Spring bean and remove
 `MockStockPriceService` (or guard it with `@ConditionalOnProperty`):
 ```java
@@ -170,14 +221,6 @@ Implement `StockPriceService` with a Spring bean and remove
 @ConditionalOnProperty(name = "app.stock.provider", havingValue = "alphaVantage")
 class AlphaVantageStockPriceService implements StockPriceService { ... }
 ```
-
-### Twilio SMS
-1. Add the Twilio Java SDK to `pom.xml`.
-2. Create `TwilioSmsService` annotated with
-   `@ConditionalOnProperty(name="app.sms.provider", havingValue="twilio")`.
-3. Set `SMS_PROVIDER=twilio` and provide `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
-   `TWILIO_FROM_NUMBER` env vars.
-The mock implementation will automatically be excluded.
 
 ---
 
@@ -188,7 +231,7 @@ backend/src/main/java/com/stocktracker
 ├── StockTrackerApplication.java
 ├── controller/        AuthController, StockController
 ├── service/           AuthService, StockService, StockPriceService (+ Mock),
-│                      SmsService (+ Mock)
+│                      NotificationService (+ Logging + Email impls)
 ├── repository/        UserRepository, TrackedStockRepository
 ├── model/             User, TrackedStock
 ├── dto/               RegisterRequest, LoginRequest, AuthResponse,
