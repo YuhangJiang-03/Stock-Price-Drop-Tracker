@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import UserSearch from "./UserSearch.jsx";
 
 function BrandLogo() {
   return (
@@ -11,19 +12,23 @@ function BrandLogo() {
   );
 }
 
-function Avatar({ email }) {
-  const initial = (email?.[0] || "?").toUpperCase();
+function Avatar({ label }) {
+  const initial = (label?.[0] || "?").toUpperCase();
   return <span className="avatar" aria-hidden="true">{initial}</span>;
 }
 
 export default function Navbar() {
-  const { isAuthenticated, email, logout } = useAuth();
+  const { isAuthenticated, email, displayName, logout } = useAuth();
   const navigate = useNavigate();
 
   const onLogout = () => {
     logout();
     navigate("/login", { replace: true });
   };
+
+  // Prefer the user-chosen display name, but fall back to the email-local-part
+  // so we always have something readable in the chrome.
+  const label = displayName || email?.split("@")[0] || email || "";
 
   return (
     <header className="navbar">
@@ -35,13 +40,18 @@ export default function Navbar() {
       </Link>
 
       {isAuthenticated && (
-        <div className="nav-right">
-          <span className="user">
-            <Avatar email={email} />
-            {email}
-          </span>
-          <button className="ghost" onClick={onLogout}>Sign out</button>
-        </div>
+        <>
+          <div className="nav-center">
+            <UserSearch />
+          </div>
+          <div className="nav-right">
+            <Link to="/profile" className="user user-link" title="Edit profile">
+              <Avatar label={label} />
+              <span className="user-label">{label}</span>
+            </Link>
+            <button className="ghost" onClick={onLogout}>Sign out</button>
+          </div>
+        </>
       )}
     </header>
   );

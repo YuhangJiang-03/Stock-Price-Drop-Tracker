@@ -40,12 +40,13 @@ public class AuthService {
             .email(email)
             .password(passwordEncoder.encode(request.getPassword()))
             .phoneNumber(request.getPhoneNumber().trim())
+            .displayName(normalizeDisplayName(request.getDisplayName()))
             .build();
 
         userRepository.save(user);
 
         String token = jwtService.generateToken(email);
-        return new AuthResponse(token, email);
+        return new AuthResponse(token, email, user.getDisplayName());
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -58,7 +59,23 @@ public class AuthService {
             throw new BadRequestException("Invalid email or password");
         }
 
+        // Authentication only verifies credentials; we still need the row to
+        // surface the (optional) display name back to the caller.
+        String displayName = userRepository.findByEmail(email)
+            .map(User::getDisplayName)
+            .orElse(null);
+
         String token = jwtService.generateToken(email);
-        return new AuthResponse(token, email);
+        return new AuthResponse(token, email, displayName);
+    }
+
+    /**
+     * Normalize a raw display-name input: trim whitespace and collapse blanks
+     * to {@code null} so we never store an empty string.
+     */
+    private static String normalizeDisplayName(String raw) {
+        if (raw == null) return null;
+        String trimmed = raw.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

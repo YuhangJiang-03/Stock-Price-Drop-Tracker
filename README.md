@@ -48,13 +48,22 @@ PostgreSQL (:5432)
 
 All endpoints under `/stocks` require an `Authorization: Bearer <jwt>` header.
 
-| Method | Path                | Body                                          | Description              |
-| ------ | ------------------- | --------------------------------------------- | ------------------------ |
-| POST   | `/auth/register`    | `{email, password, phoneNumber}`              | Create account, get JWT  |
-| POST   | `/auth/login`       | `{email, password}`                           | Authenticate, get JWT    |
-| POST   | `/stocks`           | `{symbol, dropThresholdPercentage}`           | Start tracking a stock   |
-| GET    | `/stocks`           | —                                             | List your tracked stocks |
-| DELETE | `/stocks/{id}`      | —                                             | Stop tracking a stock    |
+| Method | Path                | Body                                          | Description                                          |
+| ------ | ------------------- | --------------------------------------------- | ---------------------------------------------------- |
+| POST   | `/auth/register`    | `{email, password, phoneNumber}`              | Create account, get JWT                              |
+| POST   | `/auth/login`       | `{email, password}`                           | Authenticate, get JWT                                |
+| GET    | `/me`               | —                                             | Your private profile (email, phone, display name)    |
+| PATCH  | `/me`               | `{displayName}`                               | Update your display name                             |
+| GET    | `/users/search?q=`  | —                                             | Find other users by display name or email (≥2 chars) |
+| GET    | `/users/{id}`       | —                                             | Public profile of another user (no email/phone)      |
+| POST   | `/stocks`           | `{symbol, dropThresholdPercentage}`           | Start tracking a stock                               |
+| GET    | `/stocks`           | —                                             | List your tracked stocks                             |
+| DELETE | `/stocks/{id}`      | —                                             | Stop tracking a stock                                |
+
+User search returns up to 20 hits, excludes the caller, and only returns
+`{ id, displayName, joinedAt }` — emails and phone numbers are never exposed
+through this surface. `displayName` falls back to the email's local-part when
+the user hasn't picked one, so search results are never "anonymous".
 
 ---
 

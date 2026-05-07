@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { parseError, stocksApi } from "../services/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import TrendingNews from "../components/TrendingNews.jsx";
 
 function SymbolPill({ symbol, to }) {
   const initials = symbol.slice(0, 2);
@@ -69,7 +70,7 @@ function lastAlertLabel(stock) {
 }
 
 export default function Dashboard() {
-  const { email } = useAuth();
+  const { email, displayName } = useAuth();
   const navigate = useNavigate();
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -142,13 +143,17 @@ export default function Dashboard() {
     return { total, alerted, tracksRise };
   }, [stocks]);
 
-  const firstName = email?.split("@")[0] ?? "there";
+  // Prefer the user's chosen display name; fall back to the email-local-part
+  // so the greeting still feels personal even before they pick one.
+  const greetingName = displayName || email?.split("@")[0] || "there";
 
   return (
     <div className="app-shell">
       <div className="dashboard">
+        <TrendingNews limit={3} />
+
         <header className="page-header">
-          <h2>Welcome back, {firstName}</h2>
+          <h2>Welcome back, {greetingName}</h2>
           <p>Your watchlist is being polled every 5 minutes for price moves in either direction.</p>
         </header>
 

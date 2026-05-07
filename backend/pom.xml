@@ -140,6 +140,41 @@
                     </excludes>
                 </configuration>
             </plugin>
+
+            <!--
+              Pull the React production build into the jar's classpath at
+              static/. WebConfig serves classpath:/static/ as the SPA root
+              so a single `java -jar` is enough to host both the API and
+              the UI on one port.
+
+              Build flow: run `npm run build` in ../frontend first (the
+              build.ps1 script in the repo root does both steps for you),
+              then `mvn package` here. If frontend/dist doesn't exist the
+              copy step is a no-op — useful in CI environments that only
+              build the backend for tests.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-frontend-dist</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.basedir}/../frontend/dist</directory>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

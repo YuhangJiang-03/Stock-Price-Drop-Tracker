@@ -35,6 +35,13 @@ public class User {
     @Column(name = "phone_number", nullable = false, length = 32)
     private String phoneNumber;
 
+    /**
+     * Optional human-friendly name shown in the UI. When unset we fall back to
+     * the email's local-part on the client.
+     */
+    @Column(name = "display_name", length = 60)
+    private String displayName;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

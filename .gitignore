@@ -1,0 +1,11 @@
+# Repo-root ignores. Per-module ignores still live in backend/.gitignore
+# and frontend/.gitignore.
+
+# Secrets — local-only env file consumed by run-prod.ps1 / install-service.ps1.
+# Never commit this; share .env.example instead.
+.env
+.env.local
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db

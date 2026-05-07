@@ -92,6 +92,22 @@ export const authApi = {
   login: (payload) => api.post("/auth/login", payload).then((r) => r.data),
 };
 
+// ---------- User profile endpoints ----------
+export const userApi = {
+  getProfile: () => api.get("/me").then((r) => r.data),
+  // Pass `displayName: ""` (or null) to clear the display name and fall back
+  // to the email's local-part in the UI.
+  updateProfile: (payload) => api.patch("/me", payload).then((r) => r.data),
+};
+
+// ---------- Users endpoints (public lookup of other users) ----------
+export const usersApi = {
+  // Returns [] for queries < 2 chars (server enforces). Each hit is
+  // { id, displayName, joinedAt } — never email or phone.
+  search: (q) => api.get("/users/search", { params: { q } }).then((r) => r.data),
+  getById: (id) => api.get(`/users/${id}`).then((r) => r.data),
+};
+
 // ---------- Stocks endpoints ----------
 export const stocksApi = {
   list: () => api.get("/stocks").then((r) => r.data),
@@ -99,6 +115,14 @@ export const stocksApi = {
   remove: (id) => api.delete(`/stocks/${id}`).then((r) => r.data),
   history: (id, interval = "DAY") =>
     api.get(`/stocks/${id}/history`, { params: { interval } }).then((r) => r.data),
+};
+
+// ---------- News endpoints ----------
+// Trending stock-market news, sourced server-side from Yahoo Finance and
+// cached for ~5 min so a busy dashboard isn't constantly hitting upstream.
+export const newsApi = {
+  trending: (limit = 3) =>
+    api.get("/news/trending", { params: { limit } }).then((r) => r.data),
 };
 
 /** Pull a human-readable error string out of an axios error. */

@@ -5,11 +5,13 @@ import {
   sessionExpiredFlag,
   timeUntilExpiry,
   tokenStorage,
+  userApi,
 } from "../services/api.js";
 
 const AuthContext = createContext(null);
 
 const USER_KEY = "stock-tracker.email";
+const DISPLAY_NAME_KEY = "stock-tracker.displayName";
 
 /** Read a token from storage, but treat an expired one as if there was none. */
 function readValidToken() {
@@ -27,6 +29,9 @@ export function AuthProvider({ children }) {
   const [email, setEmail] = useState(() =>
     readValidToken() ? localStorage.getItem(USER_KEY) : null
   );
+  const [displayName, setDisplayName] = useState(() =>
+    readValidToken() ? localStorage.getItem(DISPLAY_NAME_KEY) || null : null
+  );
   const expiryTimerRef = useRef(null);
 
   useEffect(() => {
@@ -34,10 +39,16 @@ export function AuthProvider({ children }) {
     else localStorage.removeItem(USER_KEY);
   }, [email]);
 
+  useEffect(() => {
+    if (displayName) localStorage.setItem(DISPLAY_NAME_KEY, displayName);
+    else localStorage.removeItem(DISPLAY_NAME_KEY);
+  }, [displayName]);
+
   const logout = useCallback(() => {
     tokenStorage.clear();
     setToken(null);
     setEmail(null);
+    setDisplayName(null);
   }, []);
 
   // Whenever the token changes, schedule a forced logout exactly when it
@@ -70,6 +81,7 @@ export function AuthProvider({ children }) {
     tokenStorage.set(auth.token);
     setToken(auth.token);
     setEmail(auth.email);
+    setDisplayName(auth.displayName || null);
   };
 
   const login = async (creds) => {
@@ -82,9 +94,31 @@ export function AuthProvider({ children }) {
     apply(auth);
   };
 
+  /**
+   * Update the user's display name on the server and reflect the new value
+   * locally. Pass an empty string to clear it (UI will fall back to the
+   * email's local-part).
+   */
+  const updateDisplayName = useCallback(async (nextDisplayName) => {
+    const profile = await userApi.updateProfile({
+      displayName: nextDisplayName ?? "",
+    });
+    setDisplayName(profile.displayName || null);
+    return profile;
+  }, []);
+
   const value = useMemo(
-    () => ({ token, email, isAuthenticated: !!token, login, register, logout }),
-    [token, email, logout]
+    () => ({
+      token,
+      email,
+      displayName,
+      isAuthenticated: !!token,
+      login,
+      register,
+      logout,
+      updateDisplayName,
+    }),
+    [token, email, displayName, logout, updateDisplayName]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

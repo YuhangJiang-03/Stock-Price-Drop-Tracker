@@ -8,7 +8,12 @@ export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({ email: "", password: "", phoneNumber: "" });
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    phoneNumber: "",
+    displayName: "",
+  });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +30,17 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await register(form);
+      // Only send displayName when the user actually typed something — keeps
+      // the request body tidy and lets the backend leave the column null.
+      const payload = {
+        email: form.email,
+        password: form.password,
+        phoneNumber: form.phoneNumber,
+      };
+      const trimmedDisplayName = form.displayName.trim();
+      if (trimmedDisplayName) payload.displayName = trimmedDisplayName;
+
+      await register(payload);
       navigate("/", { replace: true });
     } catch (err) {
       setError(parseError(err, "Could not create account"));
@@ -67,6 +82,19 @@ export default function Register() {
               value={form.phoneNumber}
               onChange={onChange}
               required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="displayName">Display name (optional)</label>
+            <input
+              id="displayName"
+              name="displayName"
+              type="text"
+              autoComplete="nickname"
+              placeholder="How you'd like to be greeted"
+              maxLength={60}
+              value={form.displayName}
+              onChange={onChange}
             />
           </div>
           <div className="form-group">

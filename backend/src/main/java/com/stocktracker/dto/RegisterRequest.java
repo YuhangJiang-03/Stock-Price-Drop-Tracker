@@ -28,4 +28,11 @@ public class RegisterRequest {
         message = "Phone number must be a valid international number"
     )
     private String phoneNumber;
+
+    /**
+     * Optional display name. When omitted/blank we leave it null and the UI
+     * falls back to the email's local-part.
+     */
+    @Size(max = 60, message = "Display name must be 60 characters or fewer")
+    private String displayName;
 }
