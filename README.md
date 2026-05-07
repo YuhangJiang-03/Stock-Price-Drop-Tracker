@@ -18,7 +18,7 @@ stock-price-tracker/
 | Database    | PostgreSQL 14+                                                        |
 | Auth        | JWT (HS256) via `jjwt`                                                |
 | Scheduler   | Spring `@Scheduled` (cron: every 5 min)                               |
-| Stock API   | `StockPriceService` interface + `MockStockPriceService` (random walk) |
+| Stock API   | `StockPriceService` interface — `YahooFinanceStockPriceService` (default, real prices, no API key) or `MockStockPriceService` (random walk for offline dev) |
 | Notifications | `NotificationService` interface + `LoggingNotificationService` (default) and `EmailNotificationService` (Gmail SMTP, free) |
 | Frontend    | React 18 (hooks), React Router 6, axios, Vite                         |
 
@@ -76,7 +76,8 @@ DB_URL=jdbc:postgresql://localhost:5432/stock_tracker
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
 JWT_SECRET=<base64-encoded 256-bit secret>
-SMS_PROVIDER=mock
+STOCK_PROVIDER=yahoo            # or "mock" for offline dev
+NOTIFICATION_CHANNEL=log        # or "email" — see "Notification channels" below
 ```
 Hibernate is configured with `ddl-auto: update`, so the schema is created on
 first startup.
@@ -108,7 +109,8 @@ curl -X POST http://localhost:8080/stocks \
 curl http://localhost:8080/stocks -H "Authorization: Bearer $TOKEN"
 ```
 
-The scheduler logs `[MOCK SMS]` lines whenever an alert would be sent.
+The scheduler logs a `[NOTIFY:LOG]` line every time an alert would be sent
+(default channel — see "Notification channels" below to switch to email).
 
 ### 5. Tweaking schedules / cooldown
 `backend/src/main/resources/application.yml`:
@@ -194,9 +196,11 @@ Useful for development; nothing leaves the machine.
    ```
    On Linux/macOS use `export VAR=value` instead of `$env:VAR=...`.
 
-That's it. Trigger an alert (the mock stock service will eventually produce a
-big enough random drop on its own — usually within a few scheduler ticks) and
-the email lands in the inbox of whatever address the user registered with.
+That's it. With `STOCK_PROVIDER=yahoo` (the default), an alert fires whenever
+the live price actually moves past your threshold. To force-test the email
+pipeline without waiting for a real-world dip, switch `STOCK_PROVIDER=mock`
+temporarily — the random walk will produce a big enough drop within a few
+scheduler ticks.
 
 **Notes on Gmail SMTP:**
 - Free, no signup beyond an existing Gmail account.
@@ -213,9 +217,58 @@ Implement `NotificationService` and gate the bean with `@ConditionalOnProperty`:
 class TwilioNotificationService implements NotificationService { ... }
 ```
 
-## Plugging in a real stock-price provider
-Implement `StockPriceService` with a Spring bean and remove
-`MockStockPriceService` (or guard it with `@ConditionalOnProperty`):
+## Stock price provider
+
+The active price provider is selected via `app.stock.provider` (env var:
+`STOCK_PROVIDER`):
+
+### `yahoo` (default — real prices, no API key)
+
+`YahooFinanceStockPriceService` calls Yahoo Finance's public v8 chart endpoint
+(`https://query1.finance.yahoo.com/v8/finance/chart/{symbol}`). It returns the
+current price *and* OHLC history in a single response, and we cache responses
+per (symbol, interval) with a short TTL to be polite:
+
+| Cache key     | TTL    |
+| ------------- | ------ |
+| Current price | 60 s   |
+| 1D history    | 5 min  |
+| 1W history    | 30 min |
+| 1M history    | 1 h    |
+| 1Y history    | 6 h    |
+
+**Caveats:**
+- Yahoo's endpoint is unofficial — there is no SLA and no published rate limit.
+  This implementation sets a browser-style `User-Agent` and uses caching;
+  staying under ~2 requests/second is the unofficial rule of thumb.
+- Intraday data has retention limits (Yahoo only keeps ~7 days of 1-min and
+  ~60 days of 5-min data). The chart maps each interval to a granularity Yahoo
+  reliably serves: `1D→15m`, `1W→30m`, `1M→1d`, `1Y→1wk`.
+- Yahoo only returns trading-session data, so the 1D chart spans one trading
+  day rather than a strict 24-hour window — this matches what brokers show.
+- After switching from `mock` to `yahoo`, the `highest_price_seen` /
+  `lowest_price_seen` columns in `tracked_stocks` will be anchored to the old
+  mock values. The next scheduler tick will only update them if a new
+  high/low is observed; if the existing values are wildly off, you may see a
+  burst of immediate drop alerts. Either delete + re-add affected stocks, or
+  run `UPDATE tracked_stocks SET highest_price_seen = NULL, lowest_price_seen
+  = NULL;` once.
+
+### `mock` (offline-friendly, deterministic)
+
+`MockStockPriceService` is a deterministic random walk. Useful for tests, for
+local work without internet, or to demo the UI without touching a real API.
+Enable with:
+
+```powershell
+$env:STOCK_PROVIDER="mock"
+mvn spring-boot:run
+```
+
+### Adding more providers
+
+Implement `StockPriceService` and gate the bean with `@ConditionalOnProperty`:
+
 ```java
 @Service
 @ConditionalOnProperty(name = "app.stock.provider", havingValue = "alphaVantage")

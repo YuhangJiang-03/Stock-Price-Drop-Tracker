@@ -63,6 +63,17 @@ app:
     # Cool-down so a single user is not spammed with alerts.
     notification-cooldown-minutes: 60
 
+  # ---------------------------------------------------------------------------
+  # Stock price provider
+  #   "yahoo" => real prices from Yahoo Finance v8 chart API (default,
+  #              no API key, browser User-Agent + short cache to be polite).
+  #   "mock"  => deterministic random walk for offline/dev work.
+  # ---------------------------------------------------------------------------
+  stock:
+    provider: ${STOCK_PROVIDER:yahoo}
+    yahoo:
+      base-url: ${YAHOO_BASE_URL:https://query1.finance.yahoo.com}
+
   notification:
     # "log"   => write the alert to the application log (default, zero setup)
     # "email" => deliver via SMTP using spring.mail.* settings above

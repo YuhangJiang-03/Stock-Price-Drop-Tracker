@@ -1,21 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { parseError, stocksApi } from "../services/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
-function SymbolPill({ symbol }) {
+function SymbolPill({ symbol, to }) {
   const initials = symbol.slice(0, 2);
-  return (
-    <span className="symbol-pill">
+  const inner = (
+    <>
       <span className="icon">{initials}</span>
       {symbol}
-    </span>
+    </>
   );
+  if (to) {
+    return (
+      <Link to={to} className="symbol-pill linkable">
+        {inner}
+      </Link>
+    );
+  }
+  return <span className="symbol-pill">{inner}</span>;
 }
 
-function ThresholdChip({ value }) {
+function ThresholdChip({ value, direction }) {
+  if (value == null || value === "") return <span className="muted">—</span>;
+  const isRise = direction === "rise";
   return (
-    <span className="threshold-chip">
-      ▼ {Number(value).toFixed(2)}%
+    <span className={`threshold-chip ${isRise ? "rise" : "drop"}`}>
+      {isRise ? "▲" : "▼"} {Number(value).toFixed(2)}%
     </span>
   );
 }
@@ -31,7 +42,7 @@ function EmptyState() {
         </svg>
       </div>
       <div className="empty-title">No stocks tracked yet</div>
-      <div className="empty-sub">Add a ticker above to start watching for price drops.</div>
+      <div className="empty-sub">Add a ticker above to start watching for price moves.</div>
     </div>
   );
 }
@@ -46,13 +57,29 @@ function LoadingRows() {
   );
 }
 
+function lastAlertLabel(stock) {
+  const drop = stock.lastDropAlertAt ? new Date(stock.lastDropAlertAt) : null;
+  const rise = stock.lastRiseAlertAt ? new Date(stock.lastRiseAlertAt) : null;
+  if (!drop && !rise) return null;
+  // Pick whichever is most recent so we always show the freshest signal.
+  if (drop && (!rise || drop >= rise)) {
+    return { kind: "drop", at: drop };
+  }
+  return { kind: "rise", at: rise };
+}
+
 export default function Dashboard() {
   const { email } = useAuth();
+  const navigate = useNavigate();
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [form, setForm] = useState({ symbol: "", dropThresholdPercentage: "" });
+  const [form, setForm] = useState({
+    symbol: "",
+    dropThresholdPercentage: "",
+    riseThresholdPercentage: "",
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -82,8 +109,14 @@ export default function Dashboard() {
         symbol: form.symbol.trim().toUpperCase(),
         dropThresholdPercentage: parseFloat(form.dropThresholdPercentage),
       };
+      // Only include the rise threshold if the user actually filled it in;
+      // omitting the field tells the backend "don't track rises for this one".
+      const rise = form.riseThresholdPercentage.trim();
+      if (rise !== "") {
+        payload.riseThresholdPercentage = parseFloat(rise);
+      }
       await stocksApi.add(payload);
-      setForm({ symbol: "", dropThresholdPercentage: "" });
+      setForm({ symbol: "", dropThresholdPercentage: "", riseThresholdPercentage: "" });
       await refresh();
     } catch (err) {
       setError(parseError(err, "Could not add stock"));
@@ -104,12 +137,9 @@ export default function Dashboard() {
 
   const stats = useMemo(() => {
     const total = stocks.length;
-    const alerted = stocks.filter((s) => s.lastNotifiedAt).length;
-    const avgThreshold =
-      total === 0
-        ? 0
-        : stocks.reduce((sum, s) => sum + Number(s.dropThresholdPercentage || 0), 0) / total;
-    return { total, alerted, avgThreshold };
+    const alerted = stocks.filter((s) => s.lastDropAlertAt || s.lastRiseAlertAt).length;
+    const tracksRise = stocks.filter((s) => s.riseThresholdPercentage != null).length;
+    return { total, alerted, tracksRise };
   }, [stocks]);
 
   const firstName = email?.split("@")[0] ?? "there";
@@ -119,7 +149,7 @@ export default function Dashboard() {
       <div className="dashboard">
         <header className="page-header">
           <h2>Welcome back, {firstName}</h2>
-          <p>Your watchlist is being polled every 5 minutes for price drops.</p>
+          <p>Your watchlist is being polled every 5 minutes for price moves in either direction.</p>
         </header>
 
         <section className="stats">
@@ -133,12 +163,12 @@ export default function Dashboard() {
           <div className="stat-tile">
             <div className="label">Alerts sent</div>
             <div className="value">{stats.alerted}</div>
-            <div className="hint">Across all your tracked stocks</div>
+            <div className="hint">Across drops and rises combined</div>
           </div>
           <div className="stat-tile">
-            <div className="label">Avg. threshold</div>
-            <div className="value">{stats.avgThreshold.toFixed(1)}%</div>
-            <div className="hint">Average drop you watch for</div>
+            <div className="label">Watching for rises</div>
+            <div className="value">{stats.tracksRise}</div>
+            <div className="hint">Stocks with a rise threshold set</div>
           </div>
         </section>
 
@@ -146,7 +176,9 @@ export default function Dashboard() {
           <div className="card-header">
             <div>
               <h3>Track a new stock</h3>
-              <div className="card-subtitle">Get notified the moment it drops past your threshold.</div>
+              <div className="card-subtitle">
+                Get notified the moment it moves past either threshold. Rise tracking is optional.
+              </div>
             </div>
           </div>
 
@@ -179,6 +211,20 @@ export default function Dashboard() {
                 required
               />
             </div>
+            <div className="form-group">
+              <label htmlFor="riseThresholdPercentage">Rise threshold (optional)</label>
+              <input
+                id="riseThresholdPercentage"
+                name="riseThresholdPercentage"
+                type="number"
+                step="0.01"
+                min="0.01"
+                max="1000"
+                placeholder="e.g. 5"
+                value={form.riseThresholdPercentage}
+                onChange={onChange}
+              />
+            </div>
             <button className="primary" type="submit" disabled={submitting}>
               {submitting ? <><span className="spinner" />Adding…</> : "Add stock"}
             </button>
@@ -207,34 +253,57 @@ export default function Dashboard() {
                 <thead>
                   <tr>
                     <th>Symbol</th>
-                    <th>Threshold</th>
+                    <th>Drop</th>
+                    <th>Rise</th>
                     <th className="numeric">Highest seen</th>
+                    <th className="numeric">Lowest seen</th>
                     <th>Last alert</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {stocks.map((s) => (
-                    <tr key={s.id}>
-                      <td><SymbolPill symbol={s.symbol} /></td>
-                      <td><ThresholdChip value={s.dropThresholdPercentage} /></td>
-                      <td className="numeric">
-                        {s.highestPriceSeen
-                          ? `$${Number(s.highestPriceSeen).toFixed(2)}`
-                          : <span className="muted">—</span>}
-                      </td>
-                      <td>
-                        {s.lastNotifiedAt
-                          ? new Date(s.lastNotifiedAt).toLocaleString()
-                          : <span className="muted">Never</span>}
-                      </td>
-                      <td className="actions">
-                        <button className="danger" onClick={() => onDelete(s.id)}>
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {stocks.map((s) => {
+                    const lastAlert = lastAlertLabel(s);
+                    // Clicking anywhere on the row drills in, except for the
+                    // Remove button (which has its own handler + stopPropagation).
+                    const onRowClick = (e) => {
+                      if (e.target.closest("button")) return;
+                      navigate(`/stocks/${s.id}`);
+                    };
+                    return (
+                      <tr key={s.id} className="row-clickable" onClick={onRowClick}>
+                        <td><SymbolPill symbol={s.symbol} to={`/stocks/${s.id}`} /></td>
+                        <td><ThresholdChip value={s.dropThresholdPercentage} direction="drop" /></td>
+                        <td><ThresholdChip value={s.riseThresholdPercentage} direction="rise" /></td>
+                        <td className="numeric">
+                          {s.highestPriceSeen
+                            ? `$${Number(s.highestPriceSeen).toFixed(2)}`
+                            : <span className="muted">—</span>}
+                        </td>
+                        <td className="numeric">
+                          {s.lowestPriceSeen
+                            ? `$${Number(s.lowestPriceSeen).toFixed(2)}`
+                            : <span className="muted">—</span>}
+                        </td>
+                        <td>
+                          {lastAlert ? (
+                            <span className={`alert-tag ${lastAlert.kind}`}>
+                              {lastAlert.kind === "drop" ? "▼ drop" : "▲ rise"}
+                              <span className="alert-time">{lastAlert.at.toLocaleString()}</span>
+                            </span>
+                          ) : <span className="muted">Never</span>}
+                        </td>
+                        <td className="actions">
+                          <button
+                            className="danger"
+                            onClick={(e) => { e.stopPropagation(); onDelete(s.id); }}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

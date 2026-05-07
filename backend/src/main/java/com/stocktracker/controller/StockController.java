@@ -1,5 +1,7 @@
 package com.stocktracker.controller;
 
+import com.stocktracker.dto.HistoryInterval;
+import com.stocktracker.dto.StockHistoryResponse;
 import com.stocktracker.dto.TrackedStockRequest;
 import com.stocktracker.dto.TrackedStockResponse;
 import com.stocktracker.service.StockService;
@@ -43,5 +45,20 @@ public class StockController {
     ) {
         stockService.deleteTrackedStock(principal.getUsername(), id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Historical price series for a stock the caller is tracking. The
+     * {@code interval} query param maps to {@link HistoryInterval}; Spring
+     * matches values case-insensitively when the enum has matching constants
+     * (we provide DAY/WEEK/MONTH/YEAR).
+     */
+    @GetMapping("/{id}/history")
+    public ResponseEntity<StockHistoryResponse> history(
+        @AuthenticationPrincipal UserDetails principal,
+        @PathVariable Long id,
+        @RequestParam(name = "interval", defaultValue = "DAY") HistoryInterval interval
+    ) {
+        return ResponseEntity.ok(stockService.getHistory(principal.getUsername(), id, interval));
     }
 }

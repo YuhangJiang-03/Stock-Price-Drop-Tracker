@@ -1,18 +1,70 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { authApi, tokenStorage } from "../services/api.js";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  authApi,
+  isTokenExpired,
+  sessionExpiredFlag,
+  timeUntilExpiry,
+  tokenStorage,
+} from "../services/api.js";
 
 const AuthContext = createContext(null);
 
 const USER_KEY = "stock-tracker.email";
 
+/** Read a token from storage, but treat an expired one as if there was none. */
+function readValidToken() {
+  const token = tokenStorage.get();
+  if (!token) return null;
+  if (isTokenExpired(token)) {
+    tokenStorage.clear();
+    return null;
+  }
+  return token;
+}
+
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => tokenStorage.get());
-  const [email, setEmail] = useState(() => localStorage.getItem(USER_KEY));
+  const [token, setToken] = useState(readValidToken);
+  const [email, setEmail] = useState(() =>
+    readValidToken() ? localStorage.getItem(USER_KEY) : null
+  );
+  const expiryTimerRef = useRef(null);
 
   useEffect(() => {
     if (email) localStorage.setItem(USER_KEY, email);
     else localStorage.removeItem(USER_KEY);
   }, [email]);
+
+  const logout = useCallback(() => {
+    tokenStorage.clear();
+    setToken(null);
+    setEmail(null);
+  }, []);
+
+  // Whenever the token changes, schedule a forced logout exactly when it
+  // expires so the user is bounced to /login even if they're idling on a
+  // page that isn't making requests.
+  useEffect(() => {
+    if (expiryTimerRef.current) {
+      clearTimeout(expiryTimerRef.current);
+      expiryTimerRef.current = null;
+    }
+    if (!token) return;
+
+    const ms = timeUntilExpiry(token);
+    if (ms <= 0) {
+      sessionExpiredFlag.set();
+      logout();
+      return;
+    }
+    expiryTimerRef.current = setTimeout(() => {
+      sessionExpiredFlag.set();
+      logout();
+    }, ms);
+
+    return () => {
+      if (expiryTimerRef.current) clearTimeout(expiryTimerRef.current);
+    };
+  }, [token, logout]);
 
   const apply = (auth) => {
     tokenStorage.set(auth.token);
@@ -30,15 +82,9 @@ export function AuthProvider({ children }) {
     apply(auth);
   };
 
-  const logout = () => {
-    tokenStorage.clear();
-    setToken(null);
-    setEmail(null);
-  };
-
   const value = useMemo(
     () => ({ token, email, isAuthenticated: !!token, login, register, logout }),
-    [token, email]
+    [token, email, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

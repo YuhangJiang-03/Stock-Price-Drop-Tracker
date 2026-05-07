@@ -52,15 +52,40 @@ public class TrackedStock {
     private BigDecimal dropThresholdPercentage;
 
     /**
+     * Optional rise threshold in percent. When set, an alert fires whenever
+     * the price climbs at least this much above {@code lowestPriceSeen}.
+     * Nullable so existing rows (and users who don't care about rises)
+     * remain valid without a data backfill.
+     */
+    @Column(name = "rise_threshold_percentage", precision = 6, scale = 2)
+    private BigDecimal riseThresholdPercentage;
+
+    /**
      * Highest price observed since this stock was added (or since the last
-     * alert reset, depending on policy).
+     * alert reset, depending on policy). Used as the reference point for
+     * drop alerts.
      */
     @Column(name = "highest_price_seen", precision = 19, scale = 4)
     private BigDecimal highestPriceSeen;
 
-    /** Last time we sent an alert; used to enforce the cool-down. */
+    /**
+     * Lowest price observed since this stock was added; the reference point
+     * for rise alerts.
+     */
+    @Column(name = "lowest_price_seen", precision = 19, scale = 4)
+    private BigDecimal lowestPriceSeen;
+
+    /**
+     * Last time we sent a drop alert; used to enforce the per-direction
+     * cool-down. The column name is preserved for backwards compatibility
+     * with rows created before rise tracking was added.
+     */
     @Column(name = "last_notified_at")
-    private Instant lastNotifiedAt;
+    private Instant lastDropAlertAt;
+
+    /** Last time we sent a rise alert; used to enforce the cool-down. */
+    @Column(name = "last_rise_alert_at")
+    private Instant lastRiseAlertAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

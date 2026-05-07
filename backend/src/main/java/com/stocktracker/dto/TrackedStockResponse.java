@@ -18,8 +18,11 @@ public class TrackedStockResponse {
     private Long id;
     private String symbol;
     private BigDecimal dropThresholdPercentage;
+    private BigDecimal riseThresholdPercentage;
     private BigDecimal highestPriceSeen;
-    private Instant lastNotifiedAt;
+    private BigDecimal lowestPriceSeen;
+    private Instant lastDropAlertAt;
+    private Instant lastRiseAlertAt;
     private Instant createdAt;
 
     /** Convenience mapper to keep controllers slim. */
@@ -28,8 +31,11 @@ public class TrackedStockResponse {
             .id(stock.getId())
             .symbol(stock.getSymbol())
             .dropThresholdPercentage(stock.getDropThresholdPercentage())
+            .riseThresholdPercentage(stock.getRiseThresholdPercentage())
             .highestPriceSeen(stock.getHighestPriceSeen())
-            .lastNotifiedAt(stock.getLastNotifiedAt())
+            .lowestPriceSeen(stock.getLowestPriceSeen())
+            .lastDropAlertAt(stock.getLastDropAlertAt())
+            .lastRiseAlertAt(stock.getLastRiseAlertAt())
             .createdAt(stock.getCreatedAt())
             .build();
     }

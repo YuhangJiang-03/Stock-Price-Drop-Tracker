@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { parseError } from "../services/api.js";
+import { parseError, sessionExpiredFlag } from "../services/api.js";
 import AuthHero from "../components/AuthHero.jsx";
 
 export default function Login() {
@@ -12,7 +12,17 @@ export default function Login() {
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState(null);
+  const [info, setInfo] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // If we got bounced here because a JWT expired (or the server rejected one
+  // we still had in storage), let the user know rather than silently dropping
+  // them on a blank login form.
+  useEffect(() => {
+    if (sessionExpiredFlag.consume()) {
+      setInfo("Your session expired — please sign in again.");
+    }
+  }, []);
 
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -37,6 +47,7 @@ export default function Login() {
         <h2>Sign in</h2>
         <p className="subtitle">Pick up where you left off.</p>
 
+        {info && !error && <div className="info-banner">{info}</div>}
         {error && <div className="error-banner">{error}</div>}
 
         <form onSubmit={onSubmit} noValidate>

@@ -448,6 +448,34 @@ button:disabled {
   40%, 60% { transform: translateX(3px); }
 }
 
+.info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(79, 140, 255, 0.12);
+  border: 1px solid rgba(79, 140, 255, 0.4);
+  color: #c7dbff;
+  padding: 11px 13px;
+  border-radius: var(--r-md);
+  font-size: 13.5px;
+  margin-bottom: 16px;
+}
+.info-banner::before {
+  content: "i";
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--brand-2);
+  color: #06122a;
+  font-weight: 800;
+  font-style: italic;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  margin-top: 1px;
+}
+
 /* =========================================================================
    Dashboard
    ========================================================================= */
@@ -550,7 +578,7 @@ button:disabled {
 
 .add-form {
   display: grid;
-  grid-template-columns: 2fr 1fr auto;
+  grid-template-columns: 2fr 1fr 1fr auto;
   gap: 12px;
   align-items: end;
 }
@@ -562,7 +590,15 @@ button:disabled {
   min-width: 120px;
   height: 42px;
 }
-@media (max-width: 640px) {
+@media (max-width: 860px) {
+  .add-form {
+    grid-template-columns: 1fr 1fr;
+  }
+  .add-form button.primary {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 480px) {
   .add-form {
     grid-template-columns: 1fr;
   }
@@ -605,6 +641,12 @@ table tbody tr {
 table tbody tr:hover {
   background: rgba(255, 255, 255, 0.02);
 }
+table tbody tr.row-clickable {
+  cursor: pointer;
+}
+table tbody tr.row-clickable:hover {
+  background: rgba(124, 92, 255, 0.07);
+}
 table tbody tr:last-child td {
   border-bottom: none;
 }
@@ -631,6 +673,26 @@ table td.actions {
   font-size: 13px;
   letter-spacing: 0.02em;
   color: var(--text-strong);
+  text-decoration: none;
+}
+.symbol-pill.linkable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.08s ease;
+}
+.symbol-pill.linkable:hover {
+  border-color: rgba(124, 92, 255, 0.55);
+  background: rgba(124, 92, 255, 0.10);
+  text-decoration: none;
+}
+.symbol-pill.big {
+  padding: 6px 14px 6px 6px;
+  font-size: 15px;
+  gap: 10px;
+}
+.symbol-pill.big .icon {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
 }
 .symbol-pill .icon {
   width: 22px;
@@ -660,6 +722,37 @@ table td.actions {
   background: rgba(124, 92, 255, 0.14);
   color: #c4b5fd;
   border: 1px solid rgba(124, 92, 255, 0.32);
+}
+.threshold-chip.drop {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.32);
+}
+.threshold-chip.rise {
+  background: rgba(52, 211, 153, 0.14);
+  color: #a7f3d0;
+  border-color: rgba(52, 211, 153, 0.32);
+}
+
+.alert-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+}
+.alert-tag.drop { color: #fecaca; border-color: rgba(248, 113, 113, 0.32); background: rgba(248, 113, 113, 0.10); }
+.alert-tag.rise { color: #a7f3d0; border-color: rgba(52, 211, 153, 0.32); background: rgba(52, 211, 153, 0.10); }
+.alert-tag .alert-time {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Empty / loading states */
@@ -729,4 +822,199 @@ table td.actions {
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* =========================================================================
+   Stock detail page (chart + interval toggle)
+   ========================================================================= */
+.detail {
+  display: grid;
+  gap: 18px;
+  animation: fade-in 0.4s ease both;
+}
+.detail .page-header h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  width: fit-content;
+}
+.back-link:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.interval-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.interval-toggle button {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.interval-toggle button:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+.interval-toggle button.active {
+  background: var(--brand-grad);
+  color: white;
+  box-shadow: 0 4px 12px -4px rgba(124, 92, 255, 0.6);
+}
+.interval-toggle button.active:hover {
+  color: white;
+}
+.interval-toggle button:disabled {
+  cursor: default;
+  opacity: 1; /* don't gray out the active tab while it refreshes */
+}
+
+/* =========================================================================
+   Chart
+   ========================================================================= */
+.chart-wrap {
+  position: relative;
+  margin-top: 6px;
+}
+.chart-wrap.is-refreshing .price-chart {
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+}
+
+.chart-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.chart-current {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.chart-change {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.chart-change.up { color: var(--success); }
+.chart-change.down { color: var(--danger); }
+.chart-change-label {
+  color: var(--muted-2);
+  font-weight: 500;
+}
+
+.price-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  cursor: crosshair;
+}
+.price-chart .grid-line {
+  stroke: rgba(148, 163, 184, 0.10);
+  stroke-width: 1;
+}
+.price-chart .axis-label {
+  fill: var(--muted-2);
+  font-size: 11px;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.price-chart .hover-line {
+  stroke: rgba(148, 163, 184, 0.45);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.price-chart .hover-dot-outer {
+  fill: rgba(124, 92, 255, 0.25);
+  stroke: #c4b5fd;
+  stroke-width: 1.5;
+}
+.price-chart .hover-dot-inner {
+  fill: white;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 50px; /* sits just below the price header */
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: rgba(11, 16, 32, 0.92);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  box-shadow: var(--shadow-2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.chart-tooltip-price {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-strong);
+  line-height: 1.2;
+}
+.chart-tooltip-time {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.chart-skeleton {
+  height: 280px;
+  border-radius: var(--r-md);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.07) 50%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+.chart-empty {
+  height: 240px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+@media (max-width: 640px) {
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .interval-toggle {
+    align-self: stretch;
+    justify-content: space-between;
+  }
 }
